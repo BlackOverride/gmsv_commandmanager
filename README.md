@@ -94,6 +94,7 @@ in the provided lua file.
 
 - using RemoveCommand(cmd) and then BlockCommand(cmd) or vice versa will override each other.
 - uncheat only works on server-side commands, not client cheat commands
+- uncheat / recheat also works on cvars not only commands
 - may also use as combination for example calling UncheatCommand("sv_showlagcompensation") and then calling BlockCommand("sv_showlagcompensation") to block from client console 
   (just incase your not sure if command can be executed from client side directly to server)
 
