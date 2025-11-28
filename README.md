@@ -26,11 +26,8 @@ it's all done through simple lua functions that you can call from your server sc
 ## How it works
 
 the plugin hooks directly into the source engine's command system (ICvar/ConCommand) and manipulates:
-- command callbacks (to block execution)
 - command registration (to remove/restore commands)  
 - command flags (to remove FCVAR_CHEAT requirements)
-
-everything is done at the engine level, so it's way more powerful than trying to hack around it with lua hooks.
 
 ## Installation
 
@@ -52,25 +49,25 @@ blocks a command from being executed by players, but server console can still us
 BlockCommand("status")  -- players can't run status anymore
 ```
 
-### UnblockCommand(command)
-restores a blocked command back to normal - players can use it again.
-
-```lua
-UnblockCommand("status")  -- players can use status again
-```
-
 ### RemoveCommand(command)
 removes a command from the server. nobody can use it, not even console.
 
 ```lua
-RemoveCommand("echo")  -- echo command is gone completely
+RemoveCommand("echo")  -- echo command is disabled for everyone
 ```
 
 ### RestoreCommand(command)
-brings back a command that was removed.
+restore a command back if it was removed or blocked.
 
 ```lua
 RestoreCommand("echo")  -- echo is back
+```
+
+### _RemoveCommand(command)
+removes a command from the server. nobody can use it, not even console. ** Using this completely destroy the command and it cannot be restored. **
+
+```lua
+_RemoveCommand("echo")  -- echo command is gone completely
 ```
 
 ### UncheatCommand(command)
@@ -95,8 +92,7 @@ in the provided lua file.
 
 ## Notes
 
-- blocked commands fail silently - players won't see any error message
-- removing commands is persistent until you restore them or restart the server
+- using RemoveCommand(cmd) and then BlockCommand(cmd) or vice versa will override each other.
 - uncheat only works on server-side commands, not client cheat commands
 - may also use as combination for example calling UncheatCommand("sv_showlagcompensation") and then calling BlockCommand("sv_showlagcompensation") to block from client console 
   (just incase your not sure if command can be executed from client side directly to server)
