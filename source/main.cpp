@@ -6,7 +6,6 @@
 #include <string>
 #include <map>
 
-// helper struct to access private m_nFlags member
 struct ConCommandBaseAccessor {
     void* vtable;
     ConCommandBase* m_pNext;
@@ -16,25 +15,19 @@ struct ConCommandBaseAccessor {
     int m_nFlags;
 };
 
-std::map<std::string, ConCommandBase*> removedCommands; 
 std::map<std::string, FnCommandCallback_t> blockedCommands;
 std::map<std::string, int> uncheatCommands;
 
-void BlockingCallback(const CCommand &args) {
-    // silently block the command
-}
+static ICvar* g_pCvar = nullptr;
+
+void BlockingCallback(const CCommand &args) {}
 
 void BlockCommand(const char* command) {
-    if (!command || strlen(command) == 0) {
+    if (!command || strlen(command) == 0 || !g_pCvar) {
         return;
     }
 
-    ICvar *icvar = InterfacePointers::Cvar();
-    if (!icvar) {
-        return;
-    }
-
-    ConCommandBase* cmdBase = icvar->FindCommandBase(command);
+    ConCommandBase* cmdBase = g_pCvar->FindCommandBase(command);
     if (!cmdBase || !cmdBase->IsCommand()) {
         return;
     }
@@ -48,41 +41,18 @@ void BlockCommand(const char* command) {
         
         blockedCommands[command] = *callbackPtr;
         *callbackPtr = &BlockingCallback;
+        g_pCvar->UnregisterConCommand(cmd);
     }
 }
 
-void RemoveCommand(const char* command) {
-    if (!command || strlen(command) == 0) {
-        return;
-    }
-
-    ICvar *icvar = InterfacePointers::Cvar();
-    if (!icvar) {
-        return;
-    }
-
-    ConCommandBase* cmd = icvar->FindCommandBase(command);
-    if (cmd) {
-        if (removedCommands.find(command) == removedCommands.end()) {
-            removedCommands[command] = cmd;
-            icvar->UnregisterConCommand(cmd);
-        }
-    }
-}
-
-void UnblockCommand(const char* command) {
-    if (!command || strlen(command) == 0) {
-        return;
-    }
-
-    ICvar *icvar = InterfacePointers::Cvar();
-    if (!icvar) {
+void RestoreCommand(const char* command) {
+    if (!command || strlen(command) == 0 || !g_pCvar) {
         return;
     }
 
     auto it = blockedCommands.find(command);
     if (it != blockedCommands.end()) {
-        ConCommandBase* cmdBase = icvar->FindCommandBase(command);
+        ConCommandBase* cmdBase = g_pCvar->FindCommandBase(command);
         if (cmdBase && cmdBase->IsCommand()) {
             ConCommand* cmd = static_cast<ConCommand*>(cmdBase);
             
@@ -90,43 +60,19 @@ void UnblockCommand(const char* command) {
                 reinterpret_cast<char*>(cmd) + sizeof(ConCommandBase)
             );
             *callbackPtr = it->second;
+            g_pCvar->RegisterConCommand(cmd);
             
             blockedCommands.erase(it);
         }
     }
 }
 
-void RestoreCommand(const char* command) {
-    if (!command || strlen(command) == 0) {
-        return;
-    }
-
-    ICvar *icvar = InterfacePointers::Cvar();
-    if (!icvar) {
-        return;
-    }
-
-    auto it = removedCommands.find(command);
-    if (it != removedCommands.end()) {
-        ConCommandBase* cmd = it->second;
-        if (cmd) {
-            icvar->RegisterConCommand(cmd);
-            removedCommands.erase(it);
-        }
-    }
-}
-
 void UncheatCommand(const char* command) {
-    if (!command || strlen(command) == 0) {
+    if (!command || strlen(command) == 0 || !g_pCvar) {
         return;
     }
 
-    ICvar *icvar = InterfacePointers::Cvar();
-    if (!icvar) {
-        return;
-    }
-
-    ConCommandBase* cmd = icvar->FindCommandBase(command);
+    ConCommandBase* cmd = g_pCvar->FindCommandBase(command);
     if (cmd) {
         if (uncheatCommands.find(command) == uncheatCommands.end()) {
             ConCommandBaseAccessor* accessor = reinterpret_cast<ConCommandBaseAccessor*>(cmd);
@@ -138,18 +84,13 @@ void UncheatCommand(const char* command) {
 }
 
 void RecheatCommand(const char* command) {
-    if (!command || strlen(command) == 0) {
-        return;
-    }
-
-    ICvar *icvar = InterfacePointers::Cvar();
-    if (!icvar) {
+    if (!command || strlen(command) == 0 || !g_pCvar) {
         return;
     }
 
     auto it = uncheatCommands.find(command);
     if (it != uncheatCommands.end()) {
-        ConCommandBase* cmd = icvar->FindCommandBase(command);
+        ConCommandBase* cmd = g_pCvar->FindCommandBase(command);
         if (cmd) {
             ConCommandBaseAccessor* accessor = reinterpret_cast<ConCommandBaseAccessor*>(cmd);
             accessor->m_nFlags = it->second;
@@ -160,74 +101,54 @@ void RecheatCommand(const char* command) {
 
 LUA_FUNCTION(BlockCommandLua) {
     LUA->CheckType(1, GarrysMod::Lua::Type::String);
-    const char* command = LUA->GetString(1);
-
-    if (command && strlen(command) > 0) {
-        BlockCommand(command);
-    }
-    
-    return 0;
-}
-
-LUA_FUNCTION(RemoveCommandLua) {
-    LUA->CheckType(1, GarrysMod::Lua::Type::String);
-    const char* command = LUA->GetString(1);
-
-    if (command && strlen(command) > 0) {
-        RemoveCommand(command);
-    }
-    
-    return 0;
-}
-
-LUA_FUNCTION(UnblockCommandLua) {
-    LUA->CheckType(1, GarrysMod::Lua::Type::String);
-    const char* command = LUA->GetString(1);
-
-    if (command && strlen(command) > 0) {
-        UnblockCommand(command);
-    }
-    
+    BlockCommand(LUA->GetString(1));
     return 0;
 }
 
 LUA_FUNCTION(RestoreCommandLua) {
     LUA->CheckType(1, GarrysMod::Lua::Type::String);
-    const char* command = LUA->GetString(1);
-
-    if (command && strlen(command) > 0) {
-        RestoreCommand(command);
-    }
-    
+    RestoreCommand(LUA->GetString(1));
     return 0;
 }
 
 LUA_FUNCTION(UncheatCommandLua) {
     LUA->CheckType(1, GarrysMod::Lua::Type::String);
-    const char* command = LUA->GetString(1);
-
-    if (command && strlen(command) > 0) {
-        UncheatCommand(command);
-    }
-    
+    UncheatCommand(LUA->GetString(1));
     return 0;
 }
 
 LUA_FUNCTION(RecheatCommandLua) {
     LUA->CheckType(1, GarrysMod::Lua::Type::String);
-    const char* command = LUA->GetString(1);
+    RecheatCommand(LUA->GetString(1));
+    return 0;
+}
 
-    if (command && strlen(command) > 0) {
-        RecheatCommand(command);
-    }
-    
+LUA_FUNCTION(ExecuteBlockedCommandLua) {
+    LUA->CheckType(1, GarrysMod::Lua::Type::String);
+    const char* cmdName = LUA->GetString(1);
+    const char* args = nullptr;
+
+    if (LUA->IsType(2, GarrysMod::Lua::Type::String))
+        args = LUA->GetString(2);
+
+    auto it = blockedCommands.find(cmdName);
+    if (it == blockedCommands.end()) return 0;
+
+    FnCommandCallback_t cb = it->second;
+
+    CCommand ccmd;
+    if (args) ccmd.Tokenize(args);
+
+    cb(ccmd);
     return 0;
 }
 
 GMOD_MODULE_OPEN() {
+    g_pCvar = InterfacePointers::Cvar();
+
     Msg("\n");
     Msg("=========================================\n");
-    Msg("  CommandManager v1.0\n");
+    Msg("  CommandManager v1.1\n");
     Msg("  Created by Linda Black\n");
     Msg("=========================================\n");
     Msg("\n");
@@ -235,12 +156,6 @@ GMOD_MODULE_OPEN() {
     LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
         LUA->PushCFunction(BlockCommandLua);
         LUA->SetField(-2, "BlockCommand");
-        
-        LUA->PushCFunction(RemoveCommandLua);
-        LUA->SetField(-2, "RemoveCommand");
-        
-        LUA->PushCFunction(UnblockCommandLua);
-        LUA->SetField(-2, "UnblockCommand");
         
         LUA->PushCFunction(RestoreCommandLua);
         LUA->SetField(-2, "RestoreCommand");
@@ -250,6 +165,9 @@ GMOD_MODULE_OPEN() {
         
         LUA->PushCFunction(RecheatCommandLua);
         LUA->SetField(-2, "RecheatCommand");
+        
+        LUA->PushCFunction(ExecuteBlockedCommandLua);
+        LUA->SetField(-2, "ExecuteBlockedCommand");
     LUA->Pop();
 
     return 0;
@@ -257,14 +175,9 @@ GMOD_MODULE_OPEN() {
 
 GMOD_MODULE_CLOSE() {
     for (const auto& pair : blockedCommands) {
-        UnblockCommand(pair.first.c_str());
-    }
-    blockedCommands.clear();
-    
-    for (const auto& pair : removedCommands) {
         RestoreCommand(pair.first.c_str());
     }
-    removedCommands.clear();
+    blockedCommands.clear();
     
     for (const auto& pair : uncheatCommands) {
         RecheatCommand(pair.first.c_str());
