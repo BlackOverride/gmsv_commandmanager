@@ -1,5 +1,5 @@
 -- Change to 3 if compiling to x86_64
-PROJECT_GENERATOR_VERSION = 3
+PROJECT_GENERATOR_VERSION = 2
 
 newoption({
     trigger = "gmcommon",
