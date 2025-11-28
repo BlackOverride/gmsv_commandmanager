@@ -1,5 +1,5 @@
 -- Change to 3 if compiling to x86_64
-PROJECT_GENERATOR_VERSION = 2
+PROJECT_GENERATOR_VERSION = 3
 
 newoption({
     trigger = "gmcommon",
@@ -20,8 +20,7 @@ CreateWorkspace({name = "commandmanager", abi_compatible = true})
         IncludeSDKTier0()
         IncludeSDKTier1()
         IncludeHelpersExtended()
-        IncludeDetouring()
-        
+
         files({
             "source/main.cpp"
         })
