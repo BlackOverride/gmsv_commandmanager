@@ -20,8 +20,6 @@ std::map<std::string, int> uncheatCommands;
 
 static ICvar* g_pCvar = nullptr;
 
-void BlockingCallback(const CCommand &args) {}
-
 void BlockCommand(const char* command) {
     if (!command || strlen(command) == 0 || !g_pCvar) {
         return;
@@ -40,7 +38,6 @@ void BlockCommand(const char* command) {
         );
         
         blockedCommands[command] = *callbackPtr;
-        *callbackPtr = &BlockingCallback;
         g_pCvar->UnregisterConCommand(cmd);
     }
 }
@@ -56,12 +53,7 @@ void RestoreCommand(const char* command) {
         if (cmdBase && cmdBase->IsCommand()) {
             ConCommand* cmd = static_cast<ConCommand*>(cmdBase);
             
-            FnCommandCallback_t* callbackPtr = reinterpret_cast<FnCommandCallback_t*>(
-                reinterpret_cast<char*>(cmd) + sizeof(ConCommandBase)
-            );
-            *callbackPtr = it->second;
             g_pCvar->RegisterConCommand(cmd);
-            
             blockedCommands.erase(it);
         }
     }
