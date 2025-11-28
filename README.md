@@ -37,7 +37,7 @@ the plugin hooks directly into the source engine's command system (ICvar/ConComm
 
 2. place it in `garrysmod/lua/bin/`
 
-3. copy the lua `garrysmod/addons/your_addon/lua/autorun/server/` with your command configurations:
+3. copy the lua `garrysmod/addons/cmdmanager/lua/autorun/server/` with your command configurations:
 
 
 ## Available functions
