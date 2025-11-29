@@ -14,6 +14,7 @@ struct ConCommandAccessor {
     int m_nFlags;
 };
 
+std::map<std::string, ConCommandBase*> blockedCommandsBase;
 std::map<std::string, FnCommandCallback_t> blockedCommands;
 std::map<std::string, int> uncheatCommands;
 
@@ -32,6 +33,7 @@ void BlockCommand(const char* command) {
         reinterpret_cast<char*>(cmd) + sizeof(ConCommandBase)
     );
     
+    blockedCommandsBase[command] = cmdBase;
     blockedCommands[command] = *callbackPtr;
     g_pCvar->UnregisterConCommand(cmd);
 }
@@ -39,20 +41,35 @@ void BlockCommand(const char* command) {
 void RestoreCommand(const char* command) {
     if (!command || !g_pCvar) return;
 
-    auto it = blockedCommands.find(command);
-    if (it == blockedCommands.end()) return;
+    auto baseIt = blockedCommandsBase.find(command);
+    auto callbackIt = blockedCommands.find(command);
     
+    if (baseIt == blockedCommandsBase.end() || callbackIt == blockedCommands.end()) return;
+
+    ConCommandBase* cmdBase = g_pCvar->FindCommandBase(command);
+    if (cmdBase && cmdBase->IsCommand()) {
+        g_pCvar->UnregisterConCommand(static_cast<ConCommand*>(cmdBase));
+    }
+
+    g_pCvar->RegisterConCommand(baseIt->second);
+    
+    blockedCommandsBase.erase(baseIt);
+    blockedCommands.erase(callbackIt);
+}
+
+void DestroyCommand(const char* command) {
+    if (!command || !g_pCvar) return;
+
     ConCommandBase* cmdBase = g_pCvar->FindCommandBase(command);
     if (!cmdBase || !cmdBase->IsCommand()) return;
     
-    ConCommand* cmd = static_cast<ConCommand*>(cmdBase);
-    FnCommandCallback_t* callbackPtr = reinterpret_cast<FnCommandCallback_t*>(
-        reinterpret_cast<char*>(cmd) + sizeof(ConCommandBase)
-    );
+    g_pCvar->UnregisterConCommand(static_cast<ConCommand*>(cmdBase));
+
+    auto baseIt = blockedCommandsBase.find(command);
+    auto callbackIt = blockedCommands.find(command);
     
-    *callbackPtr = it->second;
-    g_pCvar->RegisterConCommand(cmd);
-    blockedCommands.erase(it);
+    if (baseIt != blockedCommandsBase.end()) blockedCommandsBase.erase(baseIt);
+    if (callbackIt != blockedCommands.end()) blockedCommands.erase(callbackIt);
 }
 
 void UncheatCommand(const char* command) {
@@ -94,6 +111,12 @@ LUA_FUNCTION(RestoreCommandLua) {
     return 0;
 }
 
+LUA_FUNCTION(DestroyCommandLua) {
+    LUA->CheckType(1, GarrysMod::Lua::Type::String);
+    DestroyCommand(LUA->GetString(1));
+    return 0;
+}
+
 LUA_FUNCTION(UncheatCommandLua) {
     LUA->CheckType(1, GarrysMod::Lua::Type::String);
     UncheatCommand(LUA->GetString(1));
@@ -127,7 +150,7 @@ GMOD_MODULE_OPEN() {
     g_pCvar = InterfacePointers::Cvar();
 
     Msg("\n=========================================\n");
-    Msg("  CommandManager v1.1\n");
+    Msg("  CommandManager v1.2\n");
     Msg("  Created by Linda Black\n");
     Msg("=========================================\n\n");
     
@@ -136,6 +159,8 @@ GMOD_MODULE_OPEN() {
     LUA->SetField(-2, "BlockCommand");
     LUA->PushCFunction(RestoreCommandLua);
     LUA->SetField(-2, "RestoreCommand");
+    LUA->PushCFunction(DestroyCommandLua);
+    LUA->SetField(-2, "DestroyCommand");
     LUA->PushCFunction(UncheatCommandLua);
     LUA->SetField(-2, "UncheatCommand");
     LUA->PushCFunction(RecheatCommandLua);
@@ -151,6 +176,7 @@ GMOD_MODULE_CLOSE() {
     for (const auto& pair : blockedCommands) {
         RestoreCommand(pair.first.c_str());
     }
+    blockedCommandsBase.clear();
     blockedCommands.clear();
     
     for (const auto& pair : uncheatCommands) {
