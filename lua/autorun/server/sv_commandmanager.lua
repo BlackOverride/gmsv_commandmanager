@@ -6,24 +6,44 @@ if not _G.CommandManagerLoaded then
     end
 end
 
--- wrapper to create Lua command that checks player vs console
-_RemoveCommand = _RemoveCommand or BlockCommand -- save our original callback first
-function BlockCommand(cmdName)
-    _RemoveCommand(cmdName)
+__BlockCommand = __BlockCommand or BlockCommand -- dont remove this line..
 
+-- localize
+local IsValid, print, HUD_PRINTCONSOLE, __BlockCommand = IsValid, print, HUD_PRINTCONSOLE, __BlockCommand
+
+-- careful when tweaking this section --
+--
+
+function BlockCommand(cmdName)
+    __BlockCommand(cmdName)
+    local msg = "Unknown command: " .. cmdName
     concommand.Add(cmdName, function(ply, cmd, args, argStr)
-        if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, "Unknown command: " .. cmdName) return end -- if its a player then we dont want it so return early
-        ExecuteBlockedCommand(cmdName, argStr or "") -- call C++ to execute the original command
+        if IsValid(ply) then 
+            ply:PrintMessage(HUD_PRINTCONSOLE, msg) 
+            return 
+        end
+        ExecuteBlockedCommand(cmdName, argStr or "")
     end)
 end
 
 function RemoveCommand(cmdName)
-    _RemoveCommand(cmdName)
-    concommand.Add(cmdName, function(ply, cmd, args, argStr)
-        if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, "Unknown command: " .. cmdName) return -- if its a player then we dont want it so return early
-		else print(string.format('Unknown command: "%s"', cmdName)) return end
+    __BlockCommand(cmdName)
+    local msgPly = "Unknown command: " .. cmdName
+    local msgCon = string.format('Unknown command: "%s"', cmdName)
+    concommand.Add(cmdName, function(ply)
+        if IsValid(ply) then 
+            ply:PrintMessage(HUD_PRINTCONSOLE, msg) 
+        else 
+            print(msgCon)
+        end
     end)
 end
+
+-- careful when tweaking this section --
+--
+
+--
+-- usage examples --
 
 -- block the 'status' command (only console can run this)
 BlockCommand("status")
@@ -31,14 +51,14 @@ BlockCommand("status")
 -- unblock the 'status' command (players can use it again)
 --RestoreCommand("status")
 
--- to completely remove a command
+-- to completely remove a command from server console too
 --RemoveCommand("lua_dumptimers_sv")
 
 -- restore removed command
 -- RestoreCommand("lua_dumptimers_sv")
 
 -- completely remove a command with no way to restore!
-_RemoveCommand("lua_dumptimers_sv")
+DestroyCommand("lua_dumptimers_sv")
 
 -- remove cheat flag from command (server-side commands only)
 --UncheatCommand("sv_showlagcompensation")
