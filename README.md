@@ -63,11 +63,11 @@ restore a command back if it was removed or blocked.
 RestoreCommand("echo")  -- echo is back
 ```
 
-### _RemoveCommand(command)
-removes a command from the server. nobody can use it, not even console. ** Using this completely destroy the command and it cannot be restored. **
+### DestroyCommand(command)
+destroy the command from everything including server console (cannot be restored)
 
 ```lua
-_RemoveCommand("echo")  -- echo command is gone completely
+DestroyCommand("echo")  -- echo command is gone completely
 ```
 
 ### UncheatCommand(command)
@@ -85,10 +85,6 @@ restores the cheat requirement back to a command.
 ```lua
 RecheatCommand("sv_showlagcompensation")  -- requires sv_cheats again
 ```
-
-## Example usage
-
-in the provided lua file.
 
 ## Notes
 
