@@ -64,7 +64,7 @@ RestoreCommand("echo")  -- echo is back
 ```
 
 ### DestroyCommand(command)
-destroy the command from everything including server console (cannot be restored)
+destroy the command from everything including server console (cannot be restored until server restart)
 
 ```lua
 DestroyCommand("echo")  -- echo command is gone completely
