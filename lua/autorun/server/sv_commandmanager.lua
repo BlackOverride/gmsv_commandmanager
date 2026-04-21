@@ -57,7 +57,7 @@ BlockCommand("status")
 -- restore removed command
 -- RestoreCommand("lua_dumptimers_sv")
 
--- completely remove a command with no way to restore!
+-- completely remove a command with no way to restore! (until server restart)
 DestroyCommand("lua_dumptimers_sv")
 
 -- remove cheat flag from command (server-side commands only)
